@@ -30,6 +30,8 @@ pub enum Errno {
     ECONNRESET = -14, // Connection reset by peer
     ERDONLY    = -15, // Read-only file system
     EAGAIN     = -16, // Resource unavailable
+    ERBEMPTY   = -17, // Ringbuffer empty
+    ERRCV      = -18  // Receive buffer too small
 }
 
 

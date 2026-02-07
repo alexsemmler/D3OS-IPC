@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package ipc.calculator;
+
+// The request contains two float arguments and the operation type.
+message CalculationRequest {
+  float a = 1;
+  float b = 2; 
+  string source = 3;
+}
+
+// Response returns a single float with the result
+message CalculationResponse {
+  float result = 1;
+}
+
+// The IPC service for performing calculations
+service CalculatorService {
+  rpc add(CalculationRequest) returns (CalculationResponse);
+}

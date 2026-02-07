@@ -26,7 +26,7 @@ use crate::{
     init_serial_port, init_tty, initrd, keyboard, logger, mouse,
     process_manager, scheduler, serial_port, timer, tss,
 };
-use crate::{built_info, memory, naming, network, storage};
+use crate::{built_info, memory, naming, network, storage, ipc};
 
 use alloc::format;
 use alloc::string::ToString;
@@ -366,6 +366,9 @@ pub extern "C" fn start(multiboot2_magic: u32, multiboot2_addr: *const BootInfor
 
     // Dump information about all processes (including VMAs)
     process_manager().read().dump();
+
+    // Initialize Inter-process communication
+    ipc::ipc::init();
 
     // Start APIC timer & scheduler
     info!("Starting scheduler");

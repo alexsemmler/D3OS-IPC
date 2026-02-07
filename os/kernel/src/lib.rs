@@ -72,6 +72,7 @@ pub mod process;
 pub mod storage;
 pub mod syscall;
 pub mod sync;
+pub mod ipc;
 
 pub mod built_info {
     // The file has been placed there by the build script
@@ -504,3 +505,5 @@ pub fn boot_info() -> &'static BootInfo {
         .get()
         .expect("Trying to access boot info before initialization")
 }
+
+

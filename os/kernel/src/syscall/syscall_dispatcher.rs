@@ -45,6 +45,7 @@ use super::sys_terminal::{
 };
 use super::sys_time::{sys_get_date, sys_get_system_time, sys_set_date};
 use super::sys_vmem::{sys_map_memory, sys_map_frame_buffer};
+use super::sys_ipc::{sys_receive, sys_register, sys_send, sys_lookup};
 
 pub const CORE_LOCAL_STORAGE_TSS_RSP0_PTR_INDEX: u64 = 0x00;
 pub const CORE_LOCAL_STORAGE_USER_RSP_INDEX: u64 = 0x08;
@@ -159,6 +160,10 @@ impl SyscallTable {
                 sys_read_keyboard as *const _,
                 sys_map_build_info as *const _,
                 sys_log as *const _,
+                sys_send as *const _,
+                sys_receive as *const _,  
+                sys_register as *const _,
+                sys_lookup as *const _,  
             ],
         }
     }

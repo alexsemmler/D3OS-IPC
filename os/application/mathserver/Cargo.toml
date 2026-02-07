@@ -1,0 +1,20 @@
+[package]
+edition = "2024"
+name = "mathserver"
+version = "0.1.0"
+authors = ["Alexander Semmler"]
+
+[lib]
+crate-type = ["staticlib"]
+path = "src/mathserver.rs"
+test = false
+doctest = false
+bench = false
+
+[dependencies]
+prost = { version = "0.14.1", default-features = false, features = ["derive"]  }
+# Local dependencies
+ipc = { path = "../../library/ipc" }
+runtime = { path = "../../library/runtime" }
+terminal = { path = "../../library/terminal" }
+concurrent = { path = "../../library/concurrent" }
