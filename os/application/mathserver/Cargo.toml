@@ -18,3 +18,4 @@ ipc = { path = "../../library/ipc" }
 runtime = { path = "../../library/runtime" }
 terminal = { path = "../../library/terminal" }
 concurrent = { path = "../../library/concurrent" }
+syscall = { path = "../../library/syscall" }

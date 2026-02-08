@@ -11,17 +11,12 @@ pub fn sys_register(name_ptr: *const u8, name_len: usize) -> isize {
     return_vals::convert_syscall_result_to_ret_code(syscall_result)
 }
 
-pub fn sys_receive(name_ptr: *const u8, name_len: usize, msg_ptr: *mut u8, recv_len: usize) -> isize{
-    let ep_name = ptr_to_string(name_ptr, name_len).unwrap();
-    return_vals::convert_syscall_result_to_ret_code(ipc::receive_msg(&ep_name, msg_ptr, recv_len))
-
+pub fn sys_receive(handle: usize, msg_ptr: *mut u8, recv_len: usize) -> isize{
+    return_vals::convert_syscall_result_to_ret_code(ipc::receive_msg(handle, msg_ptr, recv_len))
 }
 
-pub fn sys_send(name_ptr: *const u8, name_len: usize, msg_ptr:*mut u8, msg_len: usize ) -> isize {
-    let ep_name = ptr_to_string(name_ptr, name_len).unwrap();
-    unsafe {
-        return return_vals::convert_syscall_result_to_ret_code(ipc::send_msg(&ep_name, msg_ptr, msg_len));
-    }    
+pub fn sys_send(handle: usize, msg_ptr:*mut u8, msg_len: usize ) -> isize {
+    return return_vals::convert_syscall_result_to_ret_code(ipc::send_msg(handle, msg_ptr, msg_len));
 }
 
 pub fn sys_lookup(name_ptr: *const u8, name_len: usize) -> isize {

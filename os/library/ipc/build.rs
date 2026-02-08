@@ -8,7 +8,9 @@ impl prost_build::ServiceGenerator for IpcServiceGenerator {
     fn generate(&mut self, service: prost_build::Service, buf: &mut String) {
 
         let client_struct_ident = format_ident!("{}Client", service.name);
-        let server_ep_name = format_ident!("{}", service.name.to_lowercase()).to_string();
+        // "calculator" -> "calculator" (The string name used for lookup)
+        let server_ep_name_str = service.name.to_lowercase(); 
+        
         let mut method_fns = Vec::new();
 
         for method in service.methods {
@@ -20,43 +22,40 @@ impl prost_build::ServiceGenerator for IpcServiceGenerator {
             let method_code = quote! {
                 pub fn #method_ident(&self, req: &#input_type) -> core::result::Result<#output_type, i32> {
 
-                    // Calculate length
+                    // 1. Serialize Request
                     let len = prost::Message::encoded_len(req);
-                    
-                    // Allocate buffer (requires extern crate alloc)
                     let mut payload = alloc::vec::Vec::with_capacity(len);
                     
-                    // Serialize
                     if prost::Message::encode(req, &mut payload).is_err() {
                         return core::result::Result::Err(-1); 
                     }
 
-                    // Syscall 
+                    // 2. Syscall Send
+                    // Use the stored server_handle (usize) instead of string
                     api::send(
-                        #server_ep_name,
+                        self.server_handle,
                         payload.as_mut_ptr(),
                         payload.len()
                     );
 
-                    // Setup the buffer
+                    // 3. Receive Reply
                     let mut resp_len = 1024;
                     let mut resp_buf = alloc::vec![0u8; resp_len];
-
-                    // Receive loop 
                     let mut actual_len = 0;
+
                     loop {
-                        // We match the Result directly to get the length
-                        match api::receive(self.source, resp_buf.as_mut_ptr(), resp_len) {
+                        // Receive from OUR OWN handle (client_handle)
+                        match api::receive(self.client_handle, resp_buf.as_mut_ptr(), resp_len) {
                             Ok(len) => {
-                                actual_len = len; // Capture the length!
-                                break; // Stop waiting
+                                actual_len = len;
+                                break;
                             },
                             Err(Errno::ERRCV) => {
+                                // Buffer too small, resize
                                 resp_len = resp_len * 2;
                                 resp_buf = alloc::vec![0u8; resp_len];
                             },
                             Err(_) => {
-                                // Ideally add a yield/sleep here to prevent CPU burning
                                 continue; 
                             }
                         }
@@ -66,7 +65,7 @@ impl prost_build::ServiceGenerator for IpcServiceGenerator {
                         resp_buf.set_len(actual_len as usize);
                     }
 
-                    // Deserialize
+                    // 4. Deserialize
                     match <#output_type as prost::Message>::decode(resp_buf.as_slice()) {
                         core::result::Result::Ok(val) => core::result::Result::Ok(val),
                         core::result::Result::Err(_) => core::result::Result::Err(-1), 
@@ -82,22 +81,36 @@ impl prost_build::ServiceGenerator for IpcServiceGenerator {
             use crate::api;
             use syscall::return_vals::Errno;
 
-            pub const SERVER_EP_NAME: &'static str = #server_ep_name;
+            // The hardcoded service name we expect to find in the registry
+            pub const SERVER_EP_NAME: &'static str = #server_ep_name_str;
 
             /// Generated IPC Client for #service_name
+            /// Stores numeric handles for O(1) kernel access.
             pub struct #client_struct_ident {
-                pub source: &'static str,
+                server_handle: usize,
+                client_handle: usize,
             }
 
             impl #client_struct_ident {
-                pub fn new(source: &'static str) -> Self {
-                    api::register(source);
-                    Self {source}
+                /// Initializes the client.
+                /// 1. Registers 'source_name' to get a client_handle (for replies).
+                /// 2. Looks up 'SERVER_EP_NAME' to get the server_handle (for requests).
+                pub fn new(source_name: &str) -> Result<Self, Errno> {
+                    
+                    // Register ourselves so we can receive replies
+                    let client_handle = api::register(source_name)?;
+                    
+                    // Find the server we want to talk to
+                    let server_handle = api::lookup(SERVER_EP_NAME)?;
+                    
+                    Ok(Self {
+                        server_handle,
+                        client_handle,
+                    })
                 }
 
                 #(#method_fns)*
             }
-
         };
 
         buf.push_str(&client_code.to_string());
@@ -112,6 +125,7 @@ fn main() {
     config.out_dir(out_dir);
     config.service_generator(Box::new(IpcServiceGenerator));
     config.btree_map(&["."]);
+    // Ensure your proto path is correct here
     config.compile_protos(&["proto/calculator.proto"], &["proto/"]).unwrap();
 
     built::write_built_file().expect("Failed to acquire build-time information");
