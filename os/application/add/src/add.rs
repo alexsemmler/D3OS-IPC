@@ -7,7 +7,7 @@ use alloc::string::String;
 use runtime::*;
 use terminal::{println};
 use alloc::vec::Vec;
-use ipc::calc::{CalculationRequest, CalculatorServiceClient};
+use ipc::calc::{CalculationRequest, CalculatorClient};
 
 pub mod color {
     pub const RED: &str = "\x1b[31m";
@@ -63,7 +63,7 @@ pub fn main() {
             source: String::from(client_ep_name),
         };
 
-        let client = CalculatorServiceClient::new(client_ep_name).expect("Failed to create new CalculatorServiceClient");
+        let client = CalculatorClient::new(client_ep_name).expect("Failed to create new CalculatorClient");
         println!("{}client sending request for {} + {}{}", color::GREEN, req.a, req.b, color::RESET);
 
         let resp = client.add(&req);

@@ -15,6 +15,6 @@ message CalculationResponse {
 }
 
 // The IPC service for performing calculations
-service CalculatorService {
+service Calculator {
   rpc add(CalculationRequest) returns (CalculationResponse);
 }
