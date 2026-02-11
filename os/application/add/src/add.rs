@@ -57,19 +57,22 @@ pub fn main() {
             },
         };
 
-        let req = CalculationRequest{
+        let req = CalculationRequest {
             a: op1,
             b: op2,
-            source: String::from(client_ep_name),
         };
 
-        let client = CalculatorClient::new(client_ep_name).expect("Failed to create new CalculatorClient");
+        let client = CalculatorClient::new(client_ep_name)
+            .expect("Failed to create new CalculatorClient");        
+        
         println!("{}client sending request for {} + {}{}", color::GREEN, req.a, req.b, color::RESET);
 
         let resp = client.add(&req);
-        
-        let res  = resp.expect("failed to get result!").result;
-        println!("{}client got response: {:?}{}", color::GREEN, res, color::RESET);
+
+        match resp {
+            Ok(val) => println!("{}Got result: {}{}", color::GREEN, val.result, color::RESET),
+            Err(_) => println!("{}RPC Failed{}", color::RED, color::RESET),
+        }
 
     } else {
         print_usage();

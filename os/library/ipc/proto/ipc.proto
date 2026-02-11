@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package ipc;
+
+message IpcHeader {
+  string source = 1;
+  string fn_name = 2;
+  bool response_expected = 3;
+  uint32 payload_len = 4;
+}
+
+message IpcEnvelope {
+  IpcHeader header = 1;
+  bytes payload = 2;
+}
