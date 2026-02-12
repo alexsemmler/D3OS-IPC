@@ -15,14 +15,12 @@ use syscall::return_vals::Errno;
 const RB_CAPACITY: usize = 16;
 
 pub struct Endpoint {
-    // The name is now mostly for debugging/reverse lookup, 
-    // strictly speaking not needed for logic anymore.
     pub debug_name: String, 
     pub queue: Mutex<RingBuffer<Vec<u8>>>,
 }
 
 struct IpcState {
-    /// Maps "d3os.service.audio" -> ID (e.g., 5)
+    /// Maps name to ID 
     registry: BTreeMap<String, usize>,
     
     /// The actual storage. We use Option to allow slots to be freed (None).
@@ -68,25 +66,25 @@ impl Endpoint {
     pub fn get_msg(&self, buff_ptr: *mut u8, recv_len: usize) -> Result<usize, Errno> {
         let mut rb = self.queue.lock();
 
-        // 1. Peek size safely
+        // Peek size safely
         let msg_len = match rb.peek() {
             Some(m) => m.len(),
             None => return Err(Errno::ERBEMPTY),
         };
 
-        // 2. Validate buffer size
+        // Validate buffer size
         if msg_len > recv_len {
             info!("Buffer too small ({} < {})", recv_len, msg_len);
             return Err(Errno::ERRCV);
         }
 
-        // 3. Pop safely (handle concurrent modifications just in case)
+        // Pop safely (handle concurrent modifications just in case)
         let msg = match rb.pop() {
             Some(m) => m,
             None => return Err(Errno::ERBEMPTY),
         };
 
-        // 4. Copy
+        // Copy
         unsafe {
             ptr::copy_nonoverlapping(msg.as_ptr(), buff_ptr, msg_len);
         }
@@ -108,16 +106,15 @@ pub fn register(name: &str) -> Result<usize, Errno> {
     let ipc_lock = IPC.get().ok_or(Errno::EUNKN)?;
     let mut state = ipc_lock.write();
 
-    // 1. Check if name already exists
+    // Check if name already exists
     if let Some(&id) = state.registry.get(name) {
-        // Option: return the existing ID, or error saying "Already Exists"
         return Ok(id); 
     }
 
-    // 2. Create the endpoint
+    // Create the endpoint
     let endpoint = Endpoint::new(name.to_string());
 
-    // 3. Find a slot (recycle or new)
+    // Find a slot (recycle or new)
     let id = if let Some(free_id) = state.free_slots.pop() {
         state.endpoints[free_id] = Some(endpoint);
         free_id
@@ -127,7 +124,7 @@ pub fn register(name: &str) -> Result<usize, Errno> {
         new_id
     };
 
-    // 4. Update Registry
+    // Update Registry
     state.registry.insert(name.to_string(), id);
 
     info!("Registered IPC Endpoint '{}' with ID {}", name, id);
@@ -135,7 +132,6 @@ pub fn register(name: &str) -> Result<usize, Errno> {
 }
 
 /// Looks up a name and returns the Handle ID.
-/// This is the "Discovery" phase.
 pub fn lookup(name: &str) -> Result<usize, Errno> {
     let ipc_lock = IPC.get().ok_or(Errno::EUNKN)?;
     let state = ipc_lock.read();
@@ -144,23 +140,22 @@ pub fn lookup(name: &str) -> Result<usize, Errno> {
 }
 
 /// Sends a message directly to an ID. 
-/// This is O(1) and very fast.
 pub fn send_msg(handle: usize, msg_ptr: *const u8, msg_len: usize) -> Result<usize, Errno> {
     let ipc_lock = IPC.get().ok_or(Errno::EUNKN)?;
     let state = ipc_lock.read();
 
-    // 1. Validate Handle
+    // Validate Handle
     let endpoint = state.endpoints.get(handle)
         .and_then(|opt| opt.as_ref())
         .ok_or(Errno::EUNKN)?;
 
-    // 2. Prepare Message
+    // Prepare Message
     let mut msg = vec![0u8; msg_len];
     unsafe {
         ptr::copy_nonoverlapping(msg_ptr, msg.as_mut_ptr(), msg_len);
     }
 
-    // 3. Send
+    // Send
     endpoint.add_msg(msg)
 }
 
@@ -169,24 +164,24 @@ pub fn receive_msg(handle: usize, buff_ptr: *mut u8, recv_len: usize) -> Result<
     let ipc_lock = IPC.get().ok_or(Errno::EUNKN)?;
     let state = ipc_lock.read();
 
-    // 1. Validate Handle
+    // Validate Handle
     let endpoint = state.endpoints.get(handle)
         .and_then(|opt| opt.as_ref())
         .ok_or(Errno::EUNKN)?;
 
-    // 2. Receive
+    // Receive
     endpoint.get_msg(buff_ptr, recv_len)
 }
 
-/// Helper: Clean up an endpoint (e.g., when a process dies)
+/// Clean up an endpoint (when a process dies)
 pub fn unregister(name: &str) -> Result<(), Errno> {
     let ipc_lock = IPC.get().ok_or(Errno::EUNKN)?;
     let mut state = ipc_lock.write();
 
     if let Some(id) = state.registry.remove(name) {
         if id < state.endpoints.len() {
-            state.endpoints[id] = None; // Free the memory
-            state.free_slots.push(id);  // Mark ID as reusable
+            state.endpoints[id] = None; 
+            state.free_slots.push(id);  
         }
         Ok(())
     } else {

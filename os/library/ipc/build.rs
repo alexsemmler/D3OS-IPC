@@ -14,8 +14,6 @@ impl prost_build::ServiceGenerator for IpcServiceGenerator {
         let server_struct_ident = format_ident!("{}Server", service_name);
         let ep_const_ident = format_ident!("SERVER_EP_NAME");
 
-        // --- FIXED: Use the global path for the Common Types ---
-        // This assumes your ipc.proto is compiled into 'crate::ipc'
         let envelope_type = quote! { crate::ipc::IpcEnvelope };
         let header_type = quote! { crate::ipc::IpcHeader };
 
@@ -156,7 +154,6 @@ impl prost_build::ServiceGenerator for IpcServiceGenerator {
                             None => continue,
                         };
                         
-                        // We need the payload separated to decode the inner message
                         let payload = envelope.payload;
 
                         match header.fn_name.as_str() {
@@ -168,7 +165,7 @@ impl prost_build::ServiceGenerator for IpcServiceGenerator {
             }
         };
 
-        // ... (Rest of code assembly) ...
+        // Rest of code assembly
         
         let final_code = quote! {
             use crate::api;
